@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sancon Language Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fafaf9; /* Warm neutral background */
+            color: #44403c; /* Stone-700 for text */
+        }
+        
+        .font-mono {
+            font-family: 'Space Mono', monospace;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            height: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid #e7e5e4;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+
+        .interactive-card {
+            transition: all 0.3s ease;
+        }
+        
+        .interactive-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border-color: #d6d3d1;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f5f5f4;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d6d3d1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a29e;
+        }
+    </style>
+    <!-- Chosen Palette: Warm Neutrals (Stone/Warm Gray) with Soft Indigo and Emerald Accents for a calm, academic feel. -->
+    <!-- Application Structure Plan: 
+         1. Hero Section: Immediate cultural immersion and high-level stats.
+         2. The Grammar Logic (Transformer): Interactive visualizer for the core linguistic rules (-el, -if, -ma, -nica, -enta). Users can see the rules applied dynamically.
+         3. Vocabulary Analytics: Charts showing the distribution of the language types to understand the composition of the provided report.
+         4. Master Lexicon: A searchable, filterable database of all words in the source report for exploration.
+         This structure moves from "Concept" (Grammar) to "Data" (Lexicon) to "Insight" (Charts), mirroring a learning journey.
+    -->
+    <!-- Visualization & Content Choices:
+         1. Grammar: Interactive DOM manipulation (Text Cards) to show string transformations. Goal: Inform/Change. Justification: Instant feedback helps users internalize the rules.
+         2. Vocabulary Stats: Doughnut Chart (Chart.js). Goal: Compare. Justification: Visualizes the proportion of Verbs vs Nouns vs Functional words.
+         3. Lexicon: Filterable Grid (HTML/JS). Goal: Inform/Organize. Justification: Efficient lookup for the specific dataset.
+         4. NO SVG/Mermaid: All icons are Unicode or CSS shapes. Charts are Canvas.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="bg-stone-50 min-h-screen flex flex-col items-center">
+
+    <!-- Navigation / Header -->
+    <nav class="w-full bg-white border-b border-stone-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-2xl font-black tracking-tighter text-stone-800">SANCON<span class="text-indigo-600">.EDU</span></span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8">
+                    <button onclick="scrollToSection('grammar')" class="text-stone-600 hover:text-indigo-600 font-medium transition-colors">Grammar Logic</button>
+                    <button onclick="scrollToSection('analytics')" class="text-stone-600 hover:text-indigo-600 font-medium transition-colors">Analytics</button>
+                    <button onclick="scrollToSection('lexicon')" class="text-stone-600 hover:text-indigo-600 font-medium transition-colors">Lexicon</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="w-full max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8 text-center">
+        <h1 class="text-5xl md:text-6xl font-black text-stone-800 mb-6 tracking-tight">
+            The Language of <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-emerald-600">Strict Logic</span>
+        </h1>
+        <p class="mt-4 text-xl text-stone-500 max-w-2xl mx-auto leading-relaxed">
+            An interactive exploration of the Sancon language system created by Evan Pereira. 
+            Discover a linguistic framework where <span class="font-mono text-indigo-600 bg-indigo-50 px-2 py-1 rounded">verbs</span> are the engine of all meaning.
+        </p>
+        
+        <div class="mt-10 flex justify-center gap-4">
+            <div class="bg-white px-6 py-4 rounded-xl shadow-sm border border-stone-200">
+                <p class="text-xs uppercase font-bold text-stone-400 tracking-widest">Total Roots</p>
+                <p class="text-3xl font-bold text-stone-800" id="hero-total-count">--</p>
+            </div>
+            <div class="bg-white px-6 py-4 rounded-xl shadow-sm border border-stone-200">
+                <p class="text-xs uppercase font-bold text-stone-400 tracking-widest">Verb Base</p>
+                <p class="text-3xl font-bold text-indigo-600" id="hero-verb-count">--</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Section 1: The Grammar Logic (Transformer) -->
+    <section id="grammar" class="w-full max-w-6xl mx-auto px-4 py-12">
+        <div class="flex flex-col md:flex-row gap-8 mb-8">
+            <div class="md:w-1/3">
+                <h2 class="text-3xl font-bold text-stone-800 mb-4">The Transformer Engine</h2>
+                <p class="text-stone-600 mb-6 leading-relaxed">
+                    Sancon relies on a suffix-based "Transformation" system. Instead of memorizing thousands of arbitrary words, you modify a core <strong>Verb Root</strong> to create nouns, adjectives, and people.
+                </p>
+                <div class="glass-panel p-6 rounded-2xl">
+                    <label class="block text-xs font-bold uppercase text-stone-400 mb-2">Select a Root Verb</label>
+                    <select id="verb-selector" class="w-full p-3 bg-stone-50 border border-stone-200 rounded-lg text-stone-700 font-mono focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                        <!-- Options populated by JS -->
+                    </select>
+                    <p class="text-xs text-stone-400 mt-2 italic">Select a verb to see its transformations.</p>
+                </div>
+            </div>
+
+            <div class="md:w-2/3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Dynamic Cards -->
+                <div class="interactive-card bg-white p-6 rounded-2xl border border-stone-100 shadow-sm relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <span class="text-6xl">⚙️</span>
+                    </div>
+                    <p class="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-1">Base Action (Verb)</p>
+                    <h3 id="display-verb" class="text-2xl font-mono font-bold text-stone-800 mb-1">...</h3>
+                    <p id="display-verb-meaning" class="text-stone-500 text-sm">...</p>
+                    <div class="mt-4 flex gap-2">
+                        <span class="bg-stone-100 text-stone-600 text-xs px-2 py-1 rounded font-mono">-el</span>
+                    </div>
+                </div>
+
+                <div class="interactive-card bg-white p-6 rounded-2xl border border-stone-100 shadow-sm relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <span class="text-6xl">📦</span>
+                    </div>
+                    <p class="text-xs font-bold text-emerald-500 uppercase tracking-widest mb-1">Object / Concept (Noun)</p>
+                    <h3 id="display-noun" class="text-2xl font-mono font-bold text-stone-800 mb-1">...</h3>
+                    <p class="text-stone-500 text-sm">The act or result</p>
+                    <div class="mt-4 flex gap-2">
+                        <span class="bg-stone-100 text-stone-600 text-xs px-2 py-1 rounded font-mono">-el &rarr; -enta</span>
+                    </div>
+                </div>
+
+                <div class="interactive-card bg-white p-6 rounded-2xl border border-stone-100 shadow-sm relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <span class="text-6xl">✨</span>
+                    </div>
+                    <p class="text-xs font-bold text-amber-500 uppercase tracking-widest mb-1">Description (Adjective)</p>
+                    <h3 id="display-adj" class="text-2xl font-mono font-bold text-stone-800 mb-1">...</h3>
+                    <p class="text-stone-500 text-sm">Describing state</p>
+                    <div class="mt-4 flex gap-2">
+                        <span class="bg-stone-100 text-stone-600 text-xs px-2 py-1 rounded font-mono">drop -l</span>
+                    </div>
+                </div>
+
+                <div class="interactive-card bg-white p-6 rounded-2xl border border-stone-100 shadow-sm relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <span class="text-6xl">👤</span>
+                    </div>
+                    <p class="text-xs font-bold text-rose-500 uppercase tracking-widest mb-1">The Doer (Person)</p>
+                    <h3 id="display-doer" class="text-2xl font-mono font-bold text-stone-800 mb-1">...</h3>
+                    <p class="text-stone-500 text-sm">One who performs</p>
+                    <div class="mt-4 flex gap-2">
+                        <span class="bg-stone-100 text-stone-600 text-xs px-2 py-1 rounded font-mono">+ nica</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tense Timeline -->
+        <div class="bg-stone-800 rounded-2xl p-8 text-white shadow-xl">
+            <h3 class="text-lg font-bold mb-6 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-indigo-400"></span> Temporal Logic (Tenses)
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+                <!-- Connecting Line -->
+                <div class="hidden md:block absolute top-1/2 left-0 w-full h-0.5 bg-stone-700 -z-0"></div>
+
+                <div class="relative z-10 bg-stone-800 p-4 border border-stone-700 rounded-xl text-center hover:border-indigo-500 transition-colors cursor-pointer" onclick="updateTenseDemo('past')">
+                    <p class="text-stone-400 text-xs uppercase font-bold mb-2">Past</p>
+                    <p id="tense-past" class="font-mono text-xl text-indigo-300 font-bold">...</p>
+                    <p class="text-stone-500 text-xs mt-2">Root + if</p>
+                </div>
+
+                <div class="relative z-10 bg-stone-700 p-4 border border-stone-600 rounded-xl text-center shadow-lg transform scale-105">
+                    <p class="text-white text-xs uppercase font-bold mb-2">Present</p>
+                    <p id="tense-present" class="font-mono text-xl text-white font-bold">...</p>
+                    <p class="text-stone-400 text-xs mt-2">Root (-el)</p>
+                </div>
+
+                <div class="relative z-10 bg-stone-800 p-4 border border-stone-700 rounded-xl text-center hover:border-emerald-500 transition-colors cursor-pointer" onclick="updateTenseDemo('future')">
+                    <p class="text-stone-400 text-xs uppercase font-bold mb-2">Future</p>
+                    <p id="tense-future" class="font-mono text-xl text-emerald-300 font-bold">...</p>
+                    <p class="text-stone-500 text-xs mt-2">Root + ma</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 2: Analytics -->
+    <section id="analytics" class="w-full bg-white border-y border-stone-200 py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <h2 class="text-3xl font-bold text-stone-800 mb-4">Linguistic Composition</h2>
+                    <p class="text-stone-600 mb-6 leading-relaxed">
+                        The Sancon Official lexicon is heavily weighted towards functional nouns and objects, but the verb system remains the core generator. This distribution shows a language designed for describing the physical world while maintaining a strict logical action-oriented core.
+                    </p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-4 bg-stone-50 rounded-lg border-l-4 border-indigo-500">
+                            <p class="text-2xl font-bold text-stone-800" id="stat-verbs">0</p>
+                            <p class="text-xs text-stone-500 uppercase font-bold">Action Roots (Verbs)</p>
+                        </div>
+                        <div class="p-4 bg-stone-50 rounded-lg border-l-4 border-emerald-500">
+                            <p class="text-2xl font-bold text-stone-800" id="stat-nouns">0</p>
+                            <p class="text-xs text-stone-500 uppercase font-bold">Objects (Nouns)</p>
+                        </div>
+                        <div class="p-4 bg-stone-50 rounded-lg border-l-4 border-amber-500">
+                            <p class="text-2xl font-bold text-stone-800" id="stat-useful">0</p>
+                            <p class="text-xs text-stone-500 uppercase font-bold">Functional / Grammar</p>
+                        </div>
+                        <div class="p-4 bg-stone-50 rounded-lg border-l-4 border-rose-500">
+                            <p class="text-2xl font-bold text-stone-800" id="stat-total">0</p>
+                            <p class="text-xs text-stone-500 uppercase font-bold">Total Definitions</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex flex-col items-center">
+                    <div class="chart-container">
+                        <canvas id="compositionChart"></canvas>
+                    </div>
+                    <p class="text-xs text-stone-400 mt-4 text-center">Fig 1. Distribution of root types in the current lexicon.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 3: Master Lexicon -->
+    <section id="lexicon" class="w-full max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
+        <div class="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
+            <div>
+                <h2 class="text-3xl font-bold text-stone-800 mb-2">Master Lexicon</h2>
+                <p class="text-stone-500">Browse the official definitions. Click a verb to load it into the Transformer Engine above.</p>
+            </div>
+            <div class="w-full md:w-auto">
+                <input type="text" id="lexicon-search" placeholder="Search English or Sancon..." class="w-full md:w-64 p-3 bg-white border border-stone-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm">
+            </div>
+        </div>
+
+        <!-- Filter Tabs -->
+        <div class="flex gap-2 mb-6 overflow-x-auto pb-2">
+            <button onclick="filterLexicon('all')" class="filter-btn active px-4 py-2 bg-stone-800 text-white rounded-lg text-sm font-bold transition-colors hover:bg-stone-700">All</button>
+            <button onclick="filterLexicon('verbs')" class="filter-btn px-4 py-2 bg-white text-stone-600 border border-stone-200 rounded-lg text-sm font-bold transition-colors hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200">Verbs</button>
+            <button onclick="filterLexicon('nouns')" class="filter-btn px-4 py-2 bg-white text-stone-600 border border-stone-200 rounded-lg text-sm font-bold transition-colors hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200">Nouns</button>
+            <button onclick="filterLexicon('useful')" class="filter-btn px-4 py-2 bg-white text-stone-600 border border-stone-200 rounded-lg text-sm font-bold transition-colors hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200">Useful/Grammar</button>
+        </div>
+
+        <!-- Grid Layout -->
+        <div id="lexicon-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Items injected by JS -->
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-stone-900 text-stone-400 py-12 text-center">
+        <p class="mb-2">Sancon Language Official Tool</p>
+        <p class="text-xs text-stone-600">Based on documentation by Evan Pereira</p>
+    </footer>
+
+    <script>
+        // --- DATA SOURCE (From Source Report) ---
+        const sanconData = {
+            "lexicon": [
+                { "s": "e", "e": "I", "cat": "useful" },
+                { "s": "sa", "e": "You", "cat": "useful" },
+                { "s": "lai", "e": "He, She, It", "cat": "useful" },
+                { "s": "doe", "e": "We", "cat": "useful" },
+                { "s": "weal", "e": "And", "cat": "useful" },
+                { "s": "pana", "e": "Or", "cat": "useful" },
+                { "s": "kep", "e": "If", "cat": "useful" },
+                { "s": "kxe", "e": "The", "cat": "useful" },
+                { "s": "ena", "e": "A", "cat": "useful" },
+                { "s": "xen", "e": "Which", "cat": "useful" },
+                { "s": "crunk", "e": "Hello", "cat": "useful" },
+                { "s": "meyna", "e": "A lot", "cat": "useful" },
+                { "s": "meyn", "e": "More", "cat": "useful" },
+                { "s": "meynade", "e": "Most", "cat": "useful" },
+                { "s": "penka", "e": "A little", "cat": "useful" },
+                { "s": "penk", "e": "Less", "cat": "useful" },
+                { "s": "penkade", "e": "Least", "cat": "useful" },
+                { "s": "ge", "e": "This", "cat": "useful" },
+                { "s": "ga", "e": "That", "cat": "useful" },
+                { "s": "te", "e": "Here", "cat": "useful" },
+                { "s": "ta", "e": "There", "cat": "useful" },
+                { "s": "tay", "e": "Thanks / Please", "cat": "useful" },
+                { "s": "seso", "e": "Only", "cat": "useful" },
+                { "s": "tutu", "e": "Any", "cat": "useful" },
+                { "s": "fi", "e": "Of", "cat": "useful" },
+                { "s": "ka", "e": "To", "cat": "useful" },
+                { "s": "grit", "e": "Now", "cat": "useful" },
+                { "s": "muss", "e": "Stuff / Matter", "cat": "useful" },
+                { "s": "nuk", "e": "But", "cat": "useful" },
+                { "s": "bum", "e": "About", "cat": "useful" },
+                { "s": "tup", "e": "That (conjunction)", "cat": "useful" },
+                { "s": "sup", "e": "Than", "cat": "useful" },
+                { "s": "flump", "e": "Should", "cat": "useful" },
+                { "s": "glump", "e": "Would", "cat": "useful" },
+                { "s": "graz", "e": "Maybe", "cat": "useful" },
+                { "s": "paiv", "e": "So (therefore)", "cat": "useful" },
+                { "s": "tig", "e": "So", "cat": "useful" },
+                { "s": "denk", "e": "Some", "cat": "useful" },
+                { "s": "hoosh", "e": "Sorry", "cat": "useful" },
+                { "s": "pai", "e": "Yes", "cat": "useful" },
+                { "s": "poe", "e": "No", "cat": "useful" },
+                { "s": "garle", "e": "Because", "cat": "useful" },
+                { "s": "din", "e": "By / On", "cat": "useful" },
+                { "s": "silakel", "e": "To ask / Question", "cat": "verbs" },
+                { "s": "floskel", "e": "To answer", "cat": "verbs" },
+                { "s": "pivel", "e": "To arrest", "cat": "verbs" },
+                { "s": "lawanel", "e": "To annoy", "cat": "verbs" },
+                { "s": "seu", "e": "To be", "cat": "verbs" },
+                { "s": "muntel", "e": "To have / Belong", "cat": "verbs" },
+                { "s": "hintel", "e": "To learn", "cat": "verbs" },
+                { "s": "passel", "e": "To teach", "cat": "verbs" },
+                { "s": "treddel", "e": "To write / type", "cat": "verbs" },
+                { "s": "vadilitel", "e": "To do / work", "cat": "verbs" },
+                { "s": "daystel", "e": "To think", "cat": "verbs" },
+                { "s": "chumpitel", "e": "To help", "cat": "verbs" },
+                { "s": "varkel", "e": "To talk / speak", "cat": "verbs" },
+                { "s": "sindel", "e": "To eat", "cat": "verbs" },
+                { "s": "arlavel", "e": "To relax", "cat": "verbs" },
+                { "s": "mastupel", "e": "To see", "cat": "verbs" },
+                { "s": "flosel", "e": "To jump", "cat": "verbs" },
+                { "s": "crufivel", "e": "To drive", "cat": "verbs" },
+                { "s": "manilpel", "e": "To play", "cat": "verbs" },
+                { "s": "shufel", "e": "To swim", "cat": "verbs" },
+                { "s": "tikel", "e": "To run", "cat": "verbs" },
+                { "s": "lakilpel", "e": "To sleep", "cat": "verbs" },
+                { "s": "clastel", "e": "To dance", "cat": "verbs" },
+                { "s": "hinkel", "e": "To walk", "cat": "verbs" },
+                { "s": "claskel", "e": "To click", "cat": "verbs" },
+                { "s": "swepel", "e": "To hit", "cat": "verbs" },
+                { "s": "shakel", "e": "To watch", "cat": "verbs" },
+                { "s": "faskel", "e": "To look", "cat": "verbs" },
+                { "s": "flakel", "e": "To cook", "cat": "verbs" },
+                { "s": "kinkel", "e": "To clean", "cat": "verbs" },
+                { "s": "fawkel", "e": "To buy", "cat": "verbs" },
+                { "s": "gikel", "e": "To sell", "cat": "verbs" },
+                { "s": "lappel", "e": "To open", "cat": "verbs" },
+                { "s": "pappel", "e": "To close", "cat": "verbs" },
+                { "s": "trumel", "e": "To travel", "cat": "verbs" },
+                { "s": "fossu", "e": "Airplane", "cat": "nouns" },
+                { "s": "vilo", "e": "Cards", "cat": "nouns" },
+                { "s": "mava", "e": "Condition", "cat": "nouns" },
+                { "s": "jaga", "e": "Day", "cat": "nouns" },
+                { "s": "kem", "e": "Door", "cat": "nouns" },
+                { "s": "slig", "e": "Dish", "cat": "nouns" },
+                { "s": "yziu", "e": "Deck", "cat": "nouns" },
+                { "s": "ert", "e": "Earth", "cat": "nouns" },
+                { "s": "restienta", "e": "Forest", "cat": "nouns" },
+                { "s": "kulipell", "e": "Family", "cat": "nouns" },
+                { "s": "rafipell", "e": "Friend", "cat": "nouns" },
+                { "s": "intek", "e": "Fridge", "cat": "nouns" },
+                { "s": "swak", "e": "Floor", "cat": "nouns" },
+                { "s": "igatu", "e": "Foot", "cat": "nouns" },
+                { "s": "shoola", "e": "Fan", "cat": "nouns" },
+                { "s": "chakenta", "e": "Grass", "cat": "nouns" },
+                { "s": "orky", "e": "Group", "cat": "nouns" },
+                { "s": "boshic", "e": "Gift", "cat": "nouns" },
+                { "s": "ligu", "e": "Gravity", "cat": "nouns" },
+                { "s": "yabin", "e": "Holiday", "cat": "nouns" },
+                { "s": "luuvidenta", "e": "Hero", "cat": "nouns" },
+                { "s": "milchi", "e": "Handshake", "cat": "nouns" },
+                { "s": "skol", "e": "Hair", "cat": "nouns" },
+                { "s": "fublo", "e": "Head", "cat": "nouns" },
+                { "s": "pifim", "e": "Head (Alt)", "cat": "nouns" },
+                { "s": "vikikiki", "e": "Hour", "cat": "nouns" },
+                { "s": "laleis", "e": "Instrument", "cat": "nouns" },
+                { "s": "piladin", "e": "Island", "cat": "nouns" },
+                { "s": "gindise", "e": "Jail", "cat": "nouns" },
+                { "s": "wastuis", "e": "Letter (A,B,C)", "cat": "nouns" },
+                { "s": "coto", "e": "Language", "cat": "nouns" },
+                { "s": "bokin", "e": "Leg", "cat": "nouns" },
+                { "s": "skoyd", "e": "List", "cat": "nouns" },
+                { "s": "yewstade", "e": "Mailbox", "cat": "nouns" },
+                { "s": "shuukeni", "e": "Monster", "cat": "nouns" },
+                { "s": "yuga", "e": "Method", "cat": "nouns" },
+                { "s": "vikiki", "e": "Minute", "cat": "nouns" },
+                { "s": "minchi", "e": "Month", "cat": "nouns" },
+                { "s": "gaja", "e": "Night", "cat": "nouns" },
+                { "s": "pung", "e": "Nail", "cat": "nouns" },
+                { "s": "igalok", "e": "Ocean", "cat": "nouns" },
+                { "s": "pell", "e": "Person", "cat": "nouns" },
+                { "s": "dorvi", "e": "Paper", "cat": "nouns" },
+                { "s": "fron", "e": "Place", "cat": "nouns" },
+                { "s": "roddy", "e": "Plant", "cat": "nouns" },
+                { "s": "coyf", "e": "Problem", "cat": "nouns" },
+                { "s": "shep", "e": "Pen", "cat": "nouns" },
+                { "s": "shepde", "e": "Pencil", "cat": "nouns" },
+                { "s": "zcec", "e": "Pillow", "cat": "nouns" },
+                { "s": "terkinic", "e": "Phone", "cat": "nouns" },
+                { "s": "jimp", "e": "Policeman", "cat": "nouns" },
+                { "s": "klast", "e": "Party", "cat": "nouns" },
+                { "s": "dagentur", "e": "Path", "cat": "nouns" }
+            ]
+        };
+
+        // --- APP LOGIC ---
+        let currentFilter = 'all';
+
+        // Initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            initStats();
+            initTransformer();
+            initLexicon();
+            initChart();
+        });
+
+        // Navigation
+        function scrollToSection(id) {
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // --- SECTION 1: TRANSFORMER LOGIC ---
+        function initTransformer() {
+            const selector = document.getElementById('verb-selector');
+            // Get only verbs
+            const verbs = sanconData.lexicon.filter(w => w.cat === 'verbs').sort((a,b) => a.s.localeCompare(b.s));
+            
+            verbs.forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v.s;
+                opt.text = `${v.s} (${v.e})`;
+                selector.appendChild(opt);
+            });
+
+            // Set initial state
+            if(verbs.length > 0) updateTransformer(verbs[0].s);
+
+            // Listener
+            selector.addEventListener('change', (e) => updateTransformer(e.target.value));
+        }
+
+        function updateTransformer(rootVerb) {
+            const verbObj = sanconData.lexicon.find(w => w.s === rootVerb);
+            
+            // Base
+            document.getElementById('display-verb').textContent = rootVerb;
+            document.getElementById('display-verb-meaning').textContent = verbObj ? verbObj.e : '';
+
+            // Noun (-el -> -enta)
+            const noun = rootVerb.replace(/el$/, 'enta');
+            document.getElementById('display-noun').textContent = noun;
+
+            // Adjective (drop -l)
+            const adj = rootVerb.replace(/l$/, '');
+            document.getElementById('display-adj').textContent = adj;
+
+            // Doer (+ nica)
+            const doer = rootVerb + 'nica';
+            document.getElementById('display-doer').textContent = doer;
+
+            // Tenses
+            document.getElementById('tense-present').textContent = rootVerb;
+            document.getElementById('tense-past').textContent = rootVerb + 'if';
+            document.getElementById('tense-future').textContent = rootVerb + 'ma';
+        }
+
+        // --- SECTION 2: STATS & CHARTS ---
+        function initStats() {
+            const counts = {
+                verbs: sanconData.lexicon.filter(w => w.cat === 'verbs').length,
+                nouns: sanconData.lexicon.filter(w => w.cat === 'nouns').length,
+                useful: sanconData.lexicon.filter(w => w.cat === 'useful').length,
+                total: sanconData.lexicon.length
+            };
+
+            document.getElementById('stat-verbs').textContent = counts.verbs;
+            document.getElementById('stat-nouns').textContent = counts.nouns;
+            document.getElementById('stat-useful').textContent = counts.useful;
+            document.getElementById('stat-total').textContent = counts.total;
+            
+            document.getElementById('hero-total-count').textContent = counts.total;
+            document.getElementById('hero-verb-count').textContent = counts.verbs;
+
+            return counts;
+        }
+
+        function initChart() {
+            const counts = initStats();
+            const ctx = document.getElementById('compositionChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Verbs', 'Nouns', 'Grammar/Functional'],
+                    datasets: [{
+                        data: [counts.verbs, counts.nouns, counts.useful],
+                        backgroundColor: [
+                            '#4f46e5', // Indigo-600
+                            '#10b981', // Emerald-500
+                            '#f59e0b'  // Amber-500
+                        ],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { family: "'Inter', sans-serif" },
+                                usePointStyle: true
+                            }
+                        }
+                    },
+                    layout: {
+                        padding: 20
+                    }
+                }
+            });
+        }
+
+        // --- SECTION 3: LEXICON LOGIC ---
+        function initLexicon() {
+            const searchInput = document.getElementById('lexicon-search');
+            searchInput.addEventListener('keyup', () => filterLexicon(currentFilter));
+            renderLexicon(sanconData.lexicon);
+        }
+
+        function filterLexicon(category) {
+            currentFilter = category;
+            
+            // Update UI buttons
+            const buttons = document.querySelectorAll('.filter-btn');
+            buttons.forEach(btn => {
+                if (btn.textContent.toLowerCase().includes(category === 'useful' ? 'useful' : category)) {
+                    btn.classList.remove('bg-white', 'text-stone-600');
+                    btn.classList.add('bg-stone-800', 'text-white');
+                } else {
+                    btn.classList.add('bg-white', 'text-stone-600');
+                    btn.classList.remove('bg-stone-800', 'text-white');
+                }
+            });
+
+            const query = document.getElementById('lexicon-search').value.toLowerCase();
+            
+            const filtered = sanconData.lexicon.filter(item => {
+                const matchesCat = category === 'all' || item.cat === category;
+                const matchesSearch = item.s.toLowerCase().includes(query) || item.e.toLowerCase().includes(query);
+                return matchesCat && matchesSearch;
+            });
+
+            renderLexicon(filtered);
+        }
+
+        function renderLexicon(data) {
+            const grid = document.getElementById('lexicon-grid');
+            grid.innerHTML = '';
+
+            if (data.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-12 text-stone-400">No words found matching criteria.</div>`;
+                return;
+            }
+
+            data.sort((a,b) => a.s.localeCompare(b.s)).forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-5 rounded-xl border border-stone-200 shadow-sm hover:border-indigo-200 transition-colors cursor-pointer';
+                
+                // Color badges
+                let badgeClass = 'bg-stone-100 text-stone-600';
+                if (item.cat === 'verbs') badgeClass = 'bg-indigo-50 text-indigo-600';
+                if (item.cat === 'nouns') badgeClass = 'bg-emerald-50 text-emerald-600';
+                if (item.cat === 'useful') badgeClass = 'bg-amber-50 text-amber-600';
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-[10px] uppercase font-bold tracking-widest ${badgeClass} px-2 py-1 rounded">${item.cat}</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-stone-800 font-mono">${item.s}</h3>
+                    <p class="text-stone-500 text-sm mt-1">${item.e}</p>
+                `;
+
+                // If it's a verb, allow clicking to send to transformer
+                if (item.cat === 'verbs') {
+                    card.onclick = () => {
+                        document.getElementById('verb-selector').value = item.s;
+                        updateTransformer(item.s);
+                        scrollToSection('grammar');
+                    };
+                    card.title = "Click to analyze in Grammar Engine";
+                }
+
+                grid.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>
